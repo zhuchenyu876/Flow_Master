@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自然语言 → Mermaid → 工作流</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+        window.mermaid = mermaid;
+    </script>
+</head>
+<body class="bg-gray-50">
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold">自然语言 → Mermaid → 工作流</h1>
+            <p class="text-blue-100 mt-2">描述你的流程，自动生成可执行的工作流</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- 流程步骤指示器 -->
+        <div class="mb-8 bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 text-center">
+                    <div id="step1" class="w-10 h-10 bg-blue-600 text-white rounded-full mx-auto flex items-center justify-center font-bold">1</div>
+                    <p class="mt-2 text-sm font-semibold">自然语言描述</p>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center">
+                    <div id="step2" class="w-10 h-10 bg-gray-300 text-white rounded-full mx-auto flex items-center justify-center font-bold">2</div>
+                    <p class="mt-2 text-sm">生成 Mermaid</p>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center">
+                    <div id="step3" class="w-10 h-10 bg-gray-300 text-white rounded-full mx-auto flex items-center justify-center font-bold">3</div>
+                    <p class="mt-2 text-sm">转换工作流</p>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center">
+                    <div id="step4" class="w-10 h-10 bg-gray-300 text-white rounded-full mx-auto flex items-center justify-center font-bold">4</div>
+                    <p class="mt-2 text-sm">执行/导出</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 左侧：输入和 Mermaid -->
+            <div class="space-y-6">
+                <!-- 步骤 1: 自然语言输入 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold">步骤 1: 描述你的流程</h2>
+                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">自然语言</span>
+                    </div>
+                    <textarea
+                        id="naturalLanguage"
+                        placeholder="例如：&#10;&#10;创建一个订单审批流程：&#10;1. 用户提交订单&#10;2. 如果金额大于1000元，需要经理审批&#10;3. 审批通过后，发送通知给仓库&#10;4. 仓库确认后，更新订单状态"
+                        class="w-full h-40 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm"
+                    ></textarea>
+
+                    <div class="mt-4 flex gap-2">
+                        <button
+                            onclick="generateMermaid()"
+                            class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold"
+                        >
+                            生成 Mermaid 图表 →
+                        </button>
+                        <button
+                            onclick="showExamples()"
+                            class="px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                        >
+                            示例
+                        </button>
+                    </div>
+
+                    <!-- 示例选择 -->
+                    <div id="examplesPanel" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border">
+                        <p class="font-semibold mb-3 text-sm">选择示例流程：</p>
+                        <div class="space-y-2">
+                            <button onclick="loadExample(0)" class="w-full text-left p-3 bg-white rounded hover:bg-blue-50 border text-sm">
+                                <div class="font-semibold">📋 订单审批流程</div>
+                                <div class="text-xs text-gray-600 mt-1">包含条件判断、审批、通知</div>
+                            </button>
+                            <button onclick="loadExample(1)" class="w-full text-left p-3 bg-white rounded hover:bg-blue-50 border text-sm">
+                                <div class="font-semibold">🔄 数据同步工作流</div>
+                                <div class="text-xs text-gray-600 mt-1">定时触发、API调用、数据处理</div>
+                            </button>
+                            <button onclick="loadExample(2)" class="w-full text-left p-3 bg-white rounded hover:bg-blue-50 border text-sm">
+                                <div class="font-semibold">📧 邮件通知系统</div>
+                                <div class="text-xs text-gray-600 mt-1">事件触发、条件过滤、批量发送</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤 2: Mermaid 显示 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold">步骤 2: Mermaid 图表</h2>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">可视化</span>
+                    </div>
+                    <div id="mermaidContainer" class="border rounded-lg p-4 min-h-[300px] overflow-auto bg-gray-50">
+                        <p class="text-gray-400 text-center py-12">等待生成...</p>
+                    </div>
+                    <div class="mt-4">
+                        <button
+                            id="convertBtn"
+                            onclick="convertToWorkflow()"
+                            disabled
+                            class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                            转换为工作流 →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：工作流和执行 -->
+            <div class="space-y-6">
+                <!-- 步骤 3: 工作流定义 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold">步骤 3: 工作流定义</h2>
+                        <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">JSON</span>
+                    </div>
+                    <div id="workflowJson" class="border rounded-lg p-4 min-h-[300px] overflow-auto bg-gray-900 text-green-400 font-mono text-xs">
+                        <p class="text-gray-500 text-center py-12">等待转换...</p>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                            id="editBtn"
+                            onclick="editWorkflow()"
+                            disabled
+                            class="bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition text-sm disabled:bg-gray-300"
+                        >
+                            ✏️ 编辑流程
+                        </button>
+                        <button
+                            id="executeBtn"
+                            onclick="executeWorkflow()"
+                            disabled
+                            class="bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition text-sm disabled:bg-gray-300"
+                        >
+                            ▶️ 执行模拟
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 步骤 4: 执行结果 / 导出 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold">步骤 4: 执行与导出</h2>
+                        <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">操作</span>
+                    </div>
+
+                    <!-- 执行日志 -->
+                    <div id="executionLog" class="hidden mb-4 p-4 bg-gray-50 rounded-lg border max-h-48 overflow-auto">
+                        <div class="text-sm font-semibold mb-2">执行日志：</div>
+                        <div id="logContent" class="space-y-1 text-xs font-mono"></div>
+                    </div>
+
+                    <!-- 导出选项 -->
+                    <div class="space-y-3">
+                        <div class="text-sm font-semibold text-gray-700">导出格式：</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="exportWorkflow('json')" class="py-2 px-3 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm">
+                                💾 JSON
+                            </button>
+                            <button onclick="exportWorkflow('n8n')" class="py-2 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm">
+                                🔄 n8n
+                            </button>
+                            <button onclick="exportWorkflow('bpmn')" class="py-2 px-3 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm">
+                                📊 BPMN
+                            </button>
+                            <button onclick="exportWorkflow('code')" class="py-2 px-3 bg-orange-600 text-white rounded hover:bg-orange-700 transition text-sm">
+                                💻 代码
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div id="workflowStats" class="hidden mt-4 p-3 bg-blue-50 rounded-lg text-sm">
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <div class="font-bold text-blue-600" id="nodeCount">0</div>
+                                <div class="text-xs text-gray-600">节点数</div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-blue-600" id="edgeCount">0</div>
+                                <div class="text-xs text-gray-600">连接数</div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-blue-600" id="triggerCount">0</div>
+                                <div class="text-xs text-gray-600">触发器</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const examples = [
+            {
+                name: "订单审批流程",
+                description: `创建一个订单审批流程：
+1. 用户提交订单
+2. 如果金额大于1000元，需要经理审批
+3. 审批通过后，发送通知给仓库
+4. 仓库确认后，更新订单状态
+5. 如果审批拒绝，通知用户并关闭订单`,
+                mermaid: `graph TD
+    A[用户提交订单] --> B{金额检查}
+    B -->|>1000元| C[等待经理审批]
+    B -->|<=1000元| D[自动通过]
+    C --> E{审批结果}
+    E -->|通过| F[通知仓库]
+    E -->|拒绝| G[通知用户]
+    G --> H[关闭订单]
+    D --> F
+    F --> I[仓库确认]
+    I --> J[更新订单状态]
+    J --> K[完成]`,
+                workflow: {
+                    nodes: [
+                        { id: "trigger", type: "webhook", label: "订单提交", config: { method: "POST", path: "/order" } },
+                        { id: "check", type: "condition", label: "金额检查", config: { expression: "amount > 1000" } },
+                        { id: "approval", type: "manual", label: "经理审批", config: { assignee: "manager" } },
+                        { id: "notify_warehouse", type: "http", label: "通知仓库", config: { url: "/api/warehouse/notify" } },
+                        { id: "notify_user", type: "email", label: "通知用户", config: { template: "order_rejected" } },
+                        { id: "update_status", type: "database", label: "更新状态", config: { table: "orders", action: "update" } }
+                    ],
+                    edges: [
+                        { source: "trigger", target: "check" },
+                        { source: "check", target: "approval", condition: "true" },
+                        { source: "check", target: "notify_warehouse", condition: "false" },
+                        { source: "approval", target: "notify_warehouse", condition: "approved" },
+                        { source: "approval", target: "notify_user", condition: "rejected" },
+                        { source: "notify_warehouse", target: "update_status" }
+                    ]
+                }
+            },
+            {
+                name: "数据同步工作流",
+                description: `创建一个数据同步工作流：
+1. 每天凌晨2点触发
+2. 从API获取数据
+3. 数据清洗和转换
+4. 写入数据库
+5. 发送完成通知`,
+                mermaid: `graph LR
+    A[定时触发<br/>每天2:00] --> B[调用API]
+    B --> C[数据清洗]
+    C --> D[数据转换]
+    D --> E[写入数据库]
+    E --> F[发送通知]
+    F --> G[完成]`,
+                workflow: {
+                    nodes: [
+                        { id: "cron", type: "cron", label: "定时触发", config: { schedule: "0 2 * * *" } },
+                        { id: "api_call", type: "http", label: "调用API", config: { url: "/api/data", method: "GET" } },
+                        { id: "clean", type: "function", label: "数据清洗", config: { code: "return data.filter(item => item.valid)" } },
+                        { id: "transform", type: "function", label: "数据转换", config: { code: "return data.map(item => transform(item))" } },
+                        { id: "save", type: "database", label: "写入数据库", config: { table: "sync_data", action: "insert" } },
+                        { id: "notify", type: "slack", label: "发送通知", config: { channel: "#data-sync" } }
+                    ],
+                    edges: [
+                        { source: "cron", target: "api_call" },
+                        { source: "api_call", target: "clean" },
+                        { source: "clean", target: "transform" },
+                        { source: "transform", target: "save" },
+                        { source: "save", target: "notify" }
+                    ]
+                }
+            },
+            {
+                name: "邮件通知系统",
+                description: `创建一个邮件通知系统：
+1. 监听用户注册事件
+2. 检查用户类型
+3. 根据类型发送不同的欢迎邮件
+4. 记录发送日志`,
+                mermaid: `graph TD
+    A[用户注册事件] --> B{用户类型}
+    B -->|个人用户| C[发送个人欢迎邮件]
+    B -->|企业用户| D[发送企业欢迎邮件]
+    C --> E[记录日志]
+    D --> E
+    E --> F[完成]`,
+                workflow: {
+                    nodes: [
+                        { id: "event", type: "event", label: "注册事件", config: { event: "user.registered" } },
+                        { id: "check_type", type: "condition", label: "检查类型", config: { expression: "user.type === 'personal'" } },
+                        { id: "email_personal", type: "email", label: "个人邮件", config: { template: "welcome_personal" } },
+                        { id: "email_business", type: "email", label: "企业邮件", config: { template: "welcome_business" } },
+                        { id: "log", type: "database", label: "记录日志", config: { table: "email_logs", action: "insert" } }
+                    ],
+                    edges: [
+                        { source: "event", target: "check_type" },
+                        { source: "check_type", target: "email_personal", condition: "true" },
+                        { source: "check_type", target: "email_business", condition: "false" },
+                        { source: "email_personal", target: "log" },
+                        { source: "email_business", target: "log" }
+                    ]
+                }
+            }
+        ];
+
+        let currentWorkflow = null;
+        let currentMermaid = '';
+
+        function updateStep(step) {
+            for (let i = 1; i <= 4; i++) {
+                const el = document.getElementById(`step${i}`);
+                if (i <= step) {
+                    el.classList.remove('bg-gray-300');
+                    el.classList.add('bg-blue-600');
+                } else {
+                    el.classList.remove('bg-blue-600');
+                    el.classList.add('bg-gray-300');
+                }
+            }
+        }
+
+        function showExamples() {
+            const panel = document.getElementById('examplesPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function loadExample(index) {
+            const example = examples[index];
+            document.getElementById('naturalLanguage').value = example.description;
+            document.getElementById('examplesPanel').classList.add('hidden');
+
+            // 自动生成
+            setTimeout(() => generateMermaid(), 300);
+        }
+
+        async function generateMermaid() {
+            const input = document.getElementById('naturalLanguage').value.trim();
+            if (!input) {
+                alert('请输入流程描述');
+                return;
+            }
+
+            updateStep(2);
+            const container = document.getElementById('mermaidContainer');
+            container.innerHTML = '<p class="text-blue-600 text-center py-12">🔄 正在生成 Mermaid 图表...</p>';
+
+            // 模拟 LLM 生成
+            setTimeout(async () => {
+                // 这里应该调用后端 API，现在使用示例
+                const example = examples.find(ex => input.includes(ex.name.substring(0, 4))) || examples[0];
+                currentMermaid = example.mermaid;
+                currentWorkflow = example.workflow;
+
+                try {
+                    const { svg } = await window.mermaid.render('mermaid-' + Date.now(), currentMermaid);
+                    container.innerHTML = svg;
+                    document.getElementById('convertBtn').disabled = false;
+                } catch (error) {
+                    container.innerHTML = `<p class="text-red-600 text-sm p-4">渲染失败: ${error.message}</p>`;
+                }
+            }, 1500);
+        }
+
+        function convertToWorkflow() {
+            if (!currentWorkflow) return;
+
+            updateStep(3);
+            const container = document.getElementById('workflowJson');
+            container.innerHTML = '<pre class="text-green-400">' + JSON.stringify(currentWorkflow, null, 2) + '</pre>';
+
+            // 启用按钮
+            document.getElementById('editBtn').disabled = false;
+            document.getElementById('executeBtn').disabled = false;
+
+            // 显示统计
+            document.getElementById('workflowStats').classList.remove('hidden');
+            document.getElementById('nodeCount').textContent = currentWorkflow.nodes.length;
+            document.getElementById('edgeCount').textContent = currentWorkflow.edges.length;
+            document.getElementById('triggerCount').textContent = currentWorkflow.nodes.filter(n => n.type === 'webhook' || n.type === 'cron' || n.type === 'event').length;
+        }
+
+        function editWorkflow() {
+            alert('编辑功能：\n\n将打开可视化编辑器，支持：\n- 拖拽调整节点位置\n- 添加/删除节点\n- 修改节点配置\n- 调整连接关系\n\n（需要集成 React Flow 或类似库）');
+        }
+
+        function executeWorkflow() {
+            if (!currentWorkflow) return;
+
+            updateStep(4);
+            const logContainer = document.getElementById('executionLog');
+            const logContent = document.getElementById('logContent');
+
+            logContainer.classList.remove('hidden');
+            logContent.innerHTML = '';
+
+            // 模拟执行
+            let delay = 0;
+            currentWorkflow.nodes.forEach((node, index) => {
+                setTimeout(() => {
+                    const log = document.createElement('div');
+                    log.className = 'text-green-600';
+                    log.innerHTML = `✓ [${new Date().toLocaleTimeString()}] 执行节点: ${node.label} (${node.type})`;
+                    logContent.appendChild(log);
+                    logContent.scrollTop = logContent.scrollHeight;
+                }, delay);
+                delay += 500;
+            });
+
+            setTimeout(() => {
+                const log = document.createElement('div');
+                log.className = 'text-blue-600 font-bold mt-2';
+                log.innerHTML = `✓ 工作流执行完成！`;
+                logContent.appendChild(log);
+            }, delay);
+        }
+
+        function exportWorkflow(format) {
+            if (!currentWorkflow) {
+                alert('请先生成工作流');
+                return;
+            }
+
+            let content = '';
+            let filename = '';
+
+            switch(format) {
+                case 'json':
+                    content = JSON.stringify(currentWorkflow, null, 2);
+                    filename = 'workflow.json';
+                    break;
+                case 'n8n':
+                    content = JSON.stringify({
+                        name: "Imported Workflow",
+                        nodes: currentWorkflow.nodes.map(n => ({
+                            name: n.label,
+                            type: n.type,
+                            parameters: n.config
+                        })),
+                        connections: {}
+                    }, null, 2);
+                    filename = 'workflow-n8n.json';
+                    break;
+                case 'bpmn':
+                    alert('BPMN 导出功能开发中...\n\n将生成标准 BPMN 2.0 XML 格式');
+                    return;
+                case 'code':
+                    content = generateCode(currentWorkflow);
+                    filename = 'workflow.js';
+                    break;
+            }
+
+            // 下载文件
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function generateCode(workflow) {
+            let code = `// 自动生成的工作流代码\n\n`;
+            code += `async function executeWorkflow(input) {\n`;
+            code += `  console.log('开始执行工作流...');\n\n`;
+
+            workflow.nodes.forEach(node => {
+                code += `  // ${node.label}\n`;
+                code += `  const ${node.id}_result = await execute_${node.type}(${JSON.stringify(node.config)});\n\n`;
+            });
+
+            code += `  console.log('工作流执行完成');\n`;
+            code += `  return result;\n`;
+            code += `}\n`;
+
+            return code;
+        }
+    </script>
+</body>
+</html>

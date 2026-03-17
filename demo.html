@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid RAG Graph - Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+        window.mermaid = mermaid;
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <h1 class="text-2xl font-bold text-gray-900">Mermaid RAG Graph</h1>
+            <p class="text-sm text-gray-600 mt-1">基于 Prompt 生成 Mermaid 图表，结合 RAG 搜索和 DAG 可视化</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 左侧：输入和 Mermaid 显示 -->
+            <div class="space-y-6">
+                <!-- Prompt 输入 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">输入提示词</h2>
+                    <textarea
+                        id="promptInput"
+                        placeholder="描述你想要生成的图表，例如：&#10;- 创建一个用户登录流程图&#10;- 展示微服务架构&#10;- 画一个项目管理时序图"
+                        class="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    ></textarea>
+                    <button
+                        onclick="generateMermaid()"
+                        class="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+                    >
+                        生成 Mermaid 图
+                    </button>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <p class="font-semibold mb-2">示例提示词：</p>
+                        <div class="space-y-1">
+                            <button onclick="setExample(0)" class="text-blue-600 hover:underline block">1. 用户注册登录流程</button>
+                            <button onclick="setExample(1)" class="text-blue-600 hover:underline block">2. 电商订单处理系统</button>
+                            <button onclick="setExample(2)" class="text-blue-600 hover:underline block">3. 微服务架构图</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mermaid 显示 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">Mermaid 图表</h2>
+                    <div id="mermaidContainer" class="border rounded-lg p-4 min-h-[300px] overflow-auto bg-gray-50">
+                        <p class="text-gray-400 text-center py-8">输入提示词后，这里将显示生成的图表</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：DAG 和导出 -->
+            <div class="space-y-6">
+                <!-- DAG 关系图 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">DAG 关系图</h2>
+                    <div id="dagContainer" class="border rounded-lg p-4 min-h-[400px] bg-gray-50">
+                        <p class="text-gray-400 text-center py-8">生成图表后，这里将显示相关图表的关联关系</p>
+                        <div id="dagContent" class="hidden">
+                            <div class="space-y-3">
+                                <div class="bg-white p-3 rounded border-l-4 border-blue-500">
+                                    <div class="font-semibold text-sm">当前图表</div>
+                                    <div class="text-xs text-gray-600 mt-1">节点数: <span id="nodeCount">0</span> | 边数: <span id="edgeCount">0</span></div>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    <p class="font-semibold mb-2">相关图表 (基于 RAG 搜索):</p>
+                                    <div id="relatedGraphs" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 导出选项 -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">导出选项</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button
+                            onclick="exportGraph('ppt')"
+                            class="py-2 px-4 bg-orange-600 text-white rounded hover:bg-orange-700 transition disabled:bg-gray-300"
+                        >
+                            📊 导出 PPT
+                        </button>
+                        <button
+                            onclick="exportGraph('pdf')"
+                            class="py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:bg-gray-300"
+                        >
+                            📄 导出 PDF
+                        </button>
+                        <button
+                            onclick="exportGraph('word')"
+                            class="py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:bg-gray-300"
+                        >
+                            📝 导出 Word
+                        </button>
+                        <button
+                            onclick="exportGraph('json')"
+                            class="py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 transition disabled:bg-gray-300"
+                        >
+                            💾 导出 JSON
+                        </button>
+                    </div>
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                        <p>💡 提示：导出功能需要后端服务支持</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const examples = [
+            {
+                prompt: "创建一个用户注册登录流程图，包括注册、登录、忘记密码等功能",
+                mermaid: `graph TD
+    A[开始] --> B{是否已注册}
+    B -->|是| C[登录页面]
+    B -->|否| D[注册页面]
+    D --> E[填写信息]
+    E --> F[验证邮箱]
+    F --> G[注册成功]
+    G --> C
+    C --> H[输入账号密码]
+    H --> I{验证}
+    I -->|成功| J[进入系统]
+    I -->|失败| K[忘记密码?]
+    K -->|是| L[重置密码]
+    K -->|否| H
+    L --> C`
+            },
+            {
+                prompt: "展示电商订单处理系统的流程",
+                mermaid: `graph LR
+    A[用户下单] --> B[订单创建]
+    B --> C[库存检查]
+    C -->|库存充足| D[订单确认]
+    C -->|库存不足| E[订单取消]
+    D --> F[支付处理]
+    F -->|支付成功| G[订单发货]
+    F -->|支付失败| H[订单关闭]
+    G --> I[物流配送]
+    I --> J[订单完成]
+    E --> K[退款处理]
+    H --> K`
+            },
+            {
+                prompt: "画一个微服务架构图",
+                mermaid: `graph TB
+    subgraph 客户端
+        A[Web App]
+        B[Mobile App]
+    end
+
+    subgraph API网关
+        C[API Gateway]
+    end
+
+    subgraph 微服务
+        D[用户服务]
+        E[订单服务]
+        F[支付服务]
+        G[库存服务]
+    end
+
+    subgraph 数据层
+        H[(用户DB)]
+        I[(订单DB)]
+        J[(支付DB)]
+        K[(库存DB)]
+    end
+
+    A --> C
+    B --> C
+    C --> D
+    C --> E
+    C --> F
+    C --> G
+    D --> H
+    E --> I
+    F --> J
+    G --> K`
+            }
+        ];
+
+        let currentMermaidCode = '';
+
+        function setExample(index) {
+            const example = examples[index];
+            document.getElementById('promptInput').value = example.prompt;
+            renderMermaid(example.mermaid);
+            currentMermaidCode = example.mermaid;
+            updateDAG(example.mermaid);
+        }
+
+        async function generateMermaid() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                alert('请输入提示词');
+                return;
+            }
+
+            // 模拟生成（实际应该调用后端 API）
+            const container = document.getElementById('mermaidContainer');
+            container.innerHTML = '<p class="text-blue-600 text-center py-8">🔄 正在生成图表...</p>';
+
+            // 模拟延迟
+            setTimeout(() => {
+                // 这里应该调用后端 API，现在使用示例
+                const randomExample = examples[Math.floor(Math.random() * examples.length)];
+                renderMermaid(randomExample.mermaid);
+                currentMermaidCode = randomExample.mermaid;
+                updateDAG(randomExample.mermaid);
+            }, 1500);
+        }
+
+        async function renderMermaid(code) {
+            const container = document.getElementById('mermaidContainer');
+            try {
+                const { svg } = await window.mermaid.render('mermaid-diagram-' + Date.now(), code);
+                container.innerHTML = svg;
+            } catch (error) {
+                container.innerHTML = `<p class="text-red-600 text-sm">渲染失败: ${error.message}</p>`;
+            }
+        }
+
+        function updateDAG(mermaidCode) {
+            // 简单解析 Mermaid 代码
+            const lines = mermaidCode.split('\n');
+            let nodeCount = 0;
+            let edgeCount = 0;
+
+            lines.forEach(line => {
+                if (line.includes('[') && line.includes(']')) nodeCount++;
+                if (line.includes('-->') || line.includes('->')) edgeCount++;
+            });
+
+            document.getElementById('nodeCount').textContent = nodeCount;
+            document.getElementById('edgeCount').textContent = edgeCount;
+            document.getElementById('dagContent').classList.remove('hidden');
+            document.querySelector('#dagContainer > p').classList.add('hidden');
+
+            // 模拟相关图表
+            const relatedGraphs = document.getElementById('relatedGraphs');
+            relatedGraphs.innerHTML = `
+                <div class="bg-blue-50 p-2 rounded text-xs">
+                    <div class="font-semibold">相似图表 1</div>
+                    <div class="text-gray-600">相似度: 0.85</div>
+                </div>
+                <div class="bg-blue-50 p-2 rounded text-xs">
+                    <div class="font-semibold">相似图表 2</div>
+                    <div class="text-gray-600">相似度: 0.72</div>
+                </div>
+                <div class="bg-blue-50 p-2 rounded text-xs">
+                    <div class="font-semibold">相似图表 3</div>
+                    <div class="text-gray-600">相似度: 0.68</div>
+                </div>
+            `;
+        }
+
+        function exportGraph(format) {
+            if (!currentMermaidCode) {
+                alert('请先生成图表');
+                return;
+            }
+            alert(`导出为 ${format.toUpperCase()} 功能需要后端服务支持\n\n当前图表代码：\n${currentMermaidCode}`);
+        }
+    </script>
+</body>
+</html>
