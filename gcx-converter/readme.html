@@ -1,0 +1,928 @@
+<h1 id="googlecx-workflow-conversion-tool" tabindex="-1"><a class="header-anchor" href="#googlecx-workflow-conversion-tool">GoogleCX Workflow Conversion Tool</a></h1>
+<p>Convert DialogFlow CX exported flows to <a href="http://Dyna.ai">Dyna.ai</a> compatible workflow configurations.</p>
+<h2 id="%F0%9F%9A%80-quick-start" tabindex="-1"><a class="header-anchor" href="#%F0%9F%9A%80-quick-start">🚀 Quick Start</a></h2>
+<pre class="hljs"><code><span class="hljs-comment"># 1. Prepare input files</span>
+<span class="hljs-comment"># Place exported_flow_*.json files in project root or input/ folder</span>
+<span class="hljs-comment"># Place planning JSON template file in input/ folder</span>
+
+<span class="hljs-comment"># 2. Configure Step 3 API credentials (Optional, only for KB creation)</span>
+<span class="hljs-comment"># Edit step3_config.py and fill in API credentials</span>
+
+<span class="hljs-comment"># 3. Run the complete pipeline</span>
+python run_all_steps.py
+</code></pre>
+<hr>
+<h2 id="%F0%9F%93%8A-processing-workflow" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%8A-processing-workflow">📊 Processing Workflow</a></h2>
+<div class="mermaid-container">
+          <div id="mermaid-gelqbhxg5" class="mermaid">graph TB
+    Start([Start]) --> Step0[Step 0: Data Extraction<br/>Extract entities/intents/fulfillments from exported_flow]
+    Step0 --> Step1[Step 1: Data Processing<br/>Split data by language, extract parameters and configs]
+    Step1 --> Step2[Step 2: Workflow Conversion<br/>Generate nodes_config and edge_config]
+    Step2 --> Step3{Step 3: Knowledge Base Creation<br/>Optional}
+    Step3 -->|Skip| Step4[Step 4: Variables Generation<br/>Generate variables config]
+    Step3 -->|Create KB| Step3_KB[Create KB and update workflow]
+    Step3_KB --> Step4
+    Step4 --> Step5[Step 5: Workflow Metadata Generation<br/>Generate workflow_config]
+    Step5 --> Step6[Step 6: Workflow Generation<br/>Merge all configs to generate complete workflow]
+    Step6 --> Step7[Step 7: Clean Isolated Nodes<br/>Remove unconnected nodes]
+    Step7 --> Step8[Step 8: Merge to Planning JSON<br/>Generate final agent configuration]
+    Step8 --> End([Complete])
+
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style Step2 fill:#fff4e1
+    style Step3 fill:#ffe1e1
+    style Step6 fill:#e1f0ff
+    style Step8 fill:#f0e1ff
+
+    classDef optional fill:#ffe1e1,stroke:#ff9999,stroke-width:2px,stroke-dasharray: 5 5
+    class Step3,Step3_KB optional
+</div>
+        </div><p><strong>Note</strong>: To view the mermaid diagram properly, open this README in GitHub, GitLab, or any Markdown viewer that supports mermaid rendering. The diagram cannot be displayed in terminal.</p>
+<p><strong>Workflow Description</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Input</th>
+<th>Output</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Step 0</strong></td>
+<td><code>exported_flow_*.json</code></td>
+<td><code>entities.json</code>, <code>intents.json</code>, <code>fulfillments.json</code></td>
+<td>Extract raw data</td>
+</tr>
+<tr>
+<td><strong>Step 1</strong></td>
+<td>Step 0 output</td>
+<td>Data files classified by language</td>
+<td>Data preprocessing</td>
+</tr>
+<tr>
+<td><strong>Step 2</strong></td>
+<td>Step 1 output + <code>exported_flow</code></td>
+<td><code>nodes_config_*.json</code>, <code>edge_config_*.json</code></td>
+<td>Core conversion logic</td>
+</tr>
+<tr>
+<td><strong>Step 3</strong></td>
+<td>Step 2 output</td>
+<td>Updated workflow config</td>
+<td>⭐ Optional: Create knowledge bases</td>
+</tr>
+<tr>
+<td><strong>Step 4</strong></td>
+<td>Step 2/3 output</td>
+<td><code>variables_*.json</code></td>
+<td>Generate variable config</td>
+</tr>
+<tr>
+<td><strong>Step 5</strong></td>
+<td>Step 2/3 output</td>
+<td><code>workflow_config_*.json</code></td>
+<td>Generate metadata</td>
+</tr>
+<tr>
+<td><strong>Step 6</strong></td>
+<td>Step 2-5 output</td>
+<td><code>generated_workflow_*.json</code></td>
+<td>Merge to generate complete workflow</td>
+</tr>
+<tr>
+<td><strong>Step 7</strong></td>
+<td>Step 6 output</td>
+<td>Cleaned workflow</td>
+<td>Remove isolated nodes</td>
+</tr>
+<tr>
+<td><strong>Step 8</strong></td>
+<td>Step 7 output + <code>agent.json</code> template</td>
+<td>Final agent JSON</td>
+<td>Merge to planning</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="%F0%9F%93%8B-file-descriptions" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%8B-file-descriptions">📋 File Descriptions</a></h2>
+<h3 id="main-entry-point" tabindex="-1"><a class="header-anchor" href="#main-entry-point">Main Entry Point</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>run_all_steps.py</code></strong></td>
+<td><code>exported_flow_*.json</code><br><code>input/agent.json</code> (template)</td>
+<td>All steps output</td>
+<td>🚀 <strong>Main Script</strong> - Run Step 0-9 pipeline in one command</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="step-0%3A-data-extraction" tabindex="-1"><a class="header-anchor" href="#step-0%3A-data-extraction">Step 0: Data Extraction</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step0_extract_from_exported_flow.py</code></td>
+<td><code>exported_flow_*.json</code><br>(project root or <code>input/</code> folder)</td>
+<td><code>output/step0_extracted/</code><br>- <code>entities.json</code><br>- <code>intents.json</code><br>- <code>fulfillments.json</code></td>
+<td>Extract three core data files from exported_flow<br>Skip if output files already exist</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li>Parse complete exported_flow JSON file</li>
+<li>Extract entities, intents, fulfillments data</li>
+<li>Generate independent JSON files for subsequent steps</li>
+</ul>
+<hr>
+<h3 id="step-1%3A-data-processing" tabindex="-1"><a class="header-anchor" href="#step-1%3A-data-processing">Step 1: Data Processing</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step1_GoogleCX工作流拆解.py</code></td>
+<td><code>output/step0_extracted/</code><br>- <code>entities.json</code><br>- <code>intents.json</code><br>- <code>fulfillments.json</code></td>
+<td><code>output/step1_processed/</code><br>- <code>entities_{lang}.json</code><br>- <code>intents_{lang}.json</code><br>- <code>fulfillments_{lang}.json</code><br>- <code>intent_parameters.json</code><br>- <code>flow_configs.json</code><br>- <code>webhooks.json</code></td>
+<td>Split data by language<br>Extract intent parameters, flow configs, webhooks</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Language Classification</strong>: Split entities, intents, fulfillments by language (en/zh-cn/zh-hk) into independent files</li>
+<li><strong>Extract Intent Parameters</strong>: Extract all parameter definitions from intents</li>
+<li><strong>Extract Flow Configs</strong>: Extract flow-level configuration information</li>
+<li><strong>Extract Webhooks</strong>: Extract webhook configuration information</li>
+</ul>
+<hr>
+<h3 id="step-2%3A-workflow-conversion" tabindex="-1"><a class="header-anchor" href="#step-2%3A-workflow-conversion">Step 2: Workflow Conversion</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step2_workflow_converter.py</code></td>
+<td><code>output/step1_processed/</code><br>- <code>fulfillments_en.json</code><br>- <code>intents_en.json</code><br>- <code>intent_parameters.json</code><br><code>exported_flow_*.json</code></td>
+<td><code>output/step2_workflow_config/</code><br>- <code>nodes_config_{intent_name}.json</code><br>- <code>edge_config_{intent_name}.json</code><br>- <code>generated_workflows.json</code></td>
+<td>Convert fulfillments to workflows<br>Generate independent config for each flow-level intent</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Multi-Workflow Mode</strong>: Create independent workflow for each flow-level triggerIntent</li>
+<li><strong>Process Flow Level</strong>: Parse all intents in <code>flow.flow.transitionEvents</code></li>
+<li><strong>Process Page Level</strong>: Process configuration of pages in fulfillments</li>
+<li><strong>Support Four TransitionEvent Scenarios</strong>:
+<ul>
+<li><strong>a. Intent without condition</strong>: <code>capture → kb → code(extract intent) → condition → target_pages</code></li>
+<li><strong>b. Intent with condition (chained)</strong>:<pre class="hljs"><code>capture → kb → code(extract intent) → intent_check1(is intent1?)
+  ├─ Yes → LLM(extract condition variables) → CODE(parse) → param_condition → target_pages
+  └─ No → intent_check2(is intent2?) → ...
+</code></pre>
+</li>
+<li><strong>c. Pure conditional branch (no intent)</strong>: <code>condition → target_pages</code></li>
+<li><strong>d. Intent extraction + multiple condition branches</strong> (Added 2025-11-30):<pre class="hljs"><code>capture → kb → code(extract intent) → check_intent(check if matches intent)
+  ├─ Yes → llm(extract params) → code(parse) → param_condition → target_pages
+  └─ No → fallback
+</code></pre>
+Description: First route is intent trigger (no target), subsequent routes are condition checks (check session params like ccla-cccl-01)</li>
+</ul>
+</li>
+<li><strong>Supported Node Types</strong>:
+<ul>
+<li><code>start</code>: Start node</li>
+<li><code>captureUserReply</code>: Capture user reply</li>
+<li><code>knowledgeAssignment</code>: Knowledge base query</li>
+<li><code>code</code>: Code execution node</li>
+<li><code>condition</code>: Condition check node</li>
+<li><code>textReply</code>: Text reply node</li>
+<li><code>llmVariableAssignment</code>: LLM parameter extraction node</li>
+<li><code>jump</code>: Jump node</li>
+</ul>
+</li>
+<li><strong>Workflow Structure</strong>: <code>start → page-level nodes</code> (excluding flow-level intent recognition nodes)</li>
+</ul>
+<p><strong>Helper Modules</strong>:</p>
+<ul>
+<li><code>flow_start_processor.py</code>: Process flow-level intent routing</li>
+</ul>
+<hr>
+<h3 id="step-3%3A-knowledge-base-creation-%E2%AD%90-(optional)" tabindex="-1"><a class="header-anchor" href="#step-3%3A-knowledge-base-creation-%E2%AD%90-(optional)">Step 3: Knowledge Base Creation ⭐ (Optional)</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step3_config.py</code></td>
+<td>-</td>
+<td>-</td>
+<td>⚙️ <strong>Config File</strong>: API credentials, language settings, etc.</td>
+</tr>
+<tr>
+<td><code>step3_kb_workflow.py</code></td>
+<td><code>output/step1_processed/</code><br>- <code>intents_{lang}.json</code><br><code>output/step2_workflow_config/</code><br>- <code>nodes_config_*.json</code></td>
+<td><code>output/qa_knowledge_bases/</code><br>- <code>kb_per_intent_results_{lang}.json</code><br>Updated <code>nodes_config_*.json</code></td>
+<td>🚀 <strong>Main Script</strong>: End-to-end KB workflow<br>Create KB + Update workflow config</td>
+</tr>
+<tr>
+<td><code>step3_kb_creator.py</code></td>
+<td><code>output/step1_processed/</code><br>- <code>intents_{lang}.json</code></td>
+<td><code>output/qa_knowledge_bases/</code><br>- <code>kb_per_intent_results_{lang}.json</code><br>- <code>temp/qa_*.xlsx</code> (temp)</td>
+<td>Create independent KB for each intent<br>Generate Q&amp;A Excel and upload</td>
+</tr>
+<tr>
+<td><code>step3_update_workflow.py</code></td>
+<td><code>output/qa_knowledge_bases/</code><br>- <code>kb_per_intent_results_{lang}.json</code><br><code>output/step2_workflow_config/</code><br>- <code>nodes_config_*.json</code></td>
+<td>Updated<br><code>nodes_config_*.json</code></td>
+<td>Update <code>knowledge_base_ids</code><br>in workflow config</td>
+</tr>
+<tr>
+<td><code>create_knowledge_base.py</code></td>
+<td>-</td>
+<td>-</td>
+<td><strong>API Module</strong>: KB platform API wrapper</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Create independent KB for each intent</strong>: Use intent’s <code>displayName</code> as KB name</li>
+<li><strong>Generate Q&amp;A data</strong>:
+<ul>
+<li>Question: intent’s <code>trainingPhrases</code></li>
+<li>Answer: intent’s <code>displayName</code></li>
+</ul>
+</li>
+<li><strong>Auto-update workflow</strong>: Automatically update created KB IDs to corresponding workflow config</li>
+<li><strong>Smart skip</strong>: Skip already created KBs to avoid duplication</li>
+</ul>
+<p><strong>Configuration Requirements</strong>:</p>
+<ul>
+<li>Configure API credentials in <code>step3_config.py</code> (ROBOT_KEY, ROBOT_TOKEN, USERNAME)</li>
+</ul>
+<hr>
+<h3 id="step-4%3A-variable-extraction" tabindex="-1"><a class="header-anchor" href="#step-4%3A-variable-extraction">Step 4: Variable Extraction</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step4_extract_variables.py</code></td>
+<td><code>output/step2_workflow_config/</code><br>- <code>nodes_config_*.json</code><br>- <code>generated_workflows.json</code></td>
+<td><code>output/step4_variables/</code><br>- <code>variables_{intent_name}.json</code></td>
+<td>Extract all used variables from nodes<br>Generate variable definition config</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Scan all nodes</strong>: Traverse all workflow nodes to extract used variables</li>
+<li><strong>Variable definition</strong>: Generate standardized definition structure for each variable</li>
+<li><strong>Default descriptions</strong>: Provide descriptions for common variables</li>
+<li><strong>Support multi-workflow</strong>: Generate corresponding variables file for each independent workflow</li>
+</ul>
+<hr>
+<h3 id="step-5%3A-workflow-meta-extraction" tabindex="-1"><a class="header-anchor" href="#step-5%3A-workflow-meta-extraction">Step 5: Workflow Meta Extraction</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step5_extract_workflow_config.py</code></td>
+<td><code>exported_flow_*.json</code><br><code>output/step2_workflow_config/</code><br>- <code>generated_workflows.json</code></td>
+<td><code>output/step5_workflow_meta/</code><br>- <code>workflow_config_{intent_name}.json</code></td>
+<td>Extract workflow metadata<br>(name, description, creator, etc.)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Extract metadata</strong>: Extract basic flow information from exported_flow</li>
+<li><strong>Generate config</strong>: Generate config file with metadata for each workflow</li>
+<li><strong>Support multi-workflow</strong>: Generate corresponding meta file for each independent workflow</li>
+</ul>
+<hr>
+<h3 id="step-6%3A-final-workflow-generation" tabindex="-1"><a class="header-anchor" href="#step-6%3A-final-workflow-generation">Step 6: Final Workflow Generation</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step6_workflow_generator.py</code></td>
+<td><code>output/step2_workflow_config/</code><br>- <code>nodes_config_*.json</code><br>- <code>edge_config_*.json</code><br><code>output/step4_variables/</code><br>- <code>variables_*.json</code><br><code>output/step5_workflow_meta/</code><br>- <code>workflow_config_*.json</code></td>
+<td><code>output/step6_final/</code><br>- <code>generated_workflow_{intent_name}.json</code></td>
+<td>🎯 <strong>Generate final workflow JSON</strong><br>Merge all configs to generate complete<br><a href="http://Dyna.ai">Dyna.ai</a> workflow file</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Merge all configs</strong>: Merge nodes, edges, variables, meta into complete workflow JSON</li>
+<li><strong>Generate UUIDs</strong>: Generate unique identifiers for workflow, nodes, edges, etc.</li>
+<li><strong>Format output</strong>: Generate JSON file meeting <a href="http://Dyna.ai">Dyna.ai</a> format requirements</li>
+<li><strong>Support multi-workflow</strong>: Generate final file for each independent workflow</li>
+</ul>
+<hr>
+<h3 id="step-7%3A-clean-isolated-nodes" tabindex="-1"><a class="header-anchor" href="#step-7%3A-clean-isolated-nodes">Step 7: Clean Isolated Nodes</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step7_clean_isolated_nodes.py</code></td>
+<td><code>output/step6_final/</code><br>- <code>generated_workflow_*.json</code></td>
+<td><code>output/step7_final/</code><br>- <code>generated_workflow_*.json</code></td>
+<td>Check and remove isolated nodes<br>in workflow that are not connected by any edge</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Identify isolated nodes</strong>: Find nodes that are neither source nor target of any edge</li>
+<li><strong>Handle block nodes</strong>: Delete block nodes if corresponding function nodes are deleted</li>
+<li><strong>Keep start node</strong>: Start node is always kept (unless it’s the only node)</li>
+<li><strong>Clean output</strong>: Generate cleaned workflow files</li>
+</ul>
+<p><strong>Isolated Node Definition</strong>:</p>
+<ul>
+<li>Neither source of any edge</li>
+<li>Nor target of any edge</li>
+<li>Not including nodes indirectly connected through block nodes</li>
+</ul>
+<hr>
+<h3 id="step-8%3A-merge-to-planning-json" tabindex="-1"><a class="header-anchor" href="#step-8%3A-merge-to-planning-json">Step 8: Merge to Planning JSON</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step8_merge_to_planning.py</code></td>
+<td><code>input/agent.json</code> (template)<br><code>output/step7_final/</code><br>- <code>generated_workflow_*.json</code><br><code>input/exported_flow_*.json</code><br><code>output/step1_processed/</code><br>- <code>intents_en.json</code></td>
+<td><code>output/step8_final/</code><br>- <code>{template_name}_{project_name}_merged.json</code></td>
+<td>Merge workflows to planning JSON<br>Auto-create intention_list<br>Fill positive_examples</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Merge workflows</strong>: Add all workflow JSON files to <code>planning.resource.chatflow.chatflow_list</code> array</li>
+<li><strong>Auto-create intention_list</strong>: If <code>intention_list</code> is empty in template, auto-create based on <code>chatflow_list</code></li>
+<li><strong>Fill positive_examples</strong>:
+<ul>
+<li>Extract flow-level <code>transitionEvents</code> from <code>exported_flow</code> file</li>
+<li>Find corresponding intent in <code>intents_en.json</code> by <code>triggerIntentId</code></li>
+<li>Get intent’s <code>trainingPhrases</code></li>
+<li>Convert <code>trainingPhrases</code> to <code>positive_examples</code> format (with <code>id</code> and <code>value</code>)</li>
+<li>Support both index matching (<code>intent_10</code> format) and name matching</li>
+</ul>
+</li>
+<li><strong>Output filename</strong>: Generate output filename based on project name (extracted from exported_flow filename)</li>
+</ul>
+<p><strong>Matching Logic</strong>:</p>
+<ol>
+<li><strong>Index matching</strong>: If <code>flow_name</code> is <code>intent_10</code> format, extract index 10, match 10th <code>transitionEvent</code> in exported_flow</li>
+<li><strong>Name matching</strong>: If <code>flow_name</code> is actual intent name, match by normalized name</li>
+</ol>
+<hr>
+<h3 id="step-9%3A-upload-agent-to-dyna.ai-platform-%E2%AD%90-(optional)" tabindex="-1"><a class="header-anchor" href="#step-9%3A-upload-agent-to-dyna.ai-platform-%E2%AD%90-(optional)">Step 9: Upload Agent to <a href="http://Dyna.ai">Dyna.ai</a> Platform ⭐ (Optional)</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step9_upload_agent.py</code></td>
+<td><code>output/step8_final/</code><br>- <code>*_merged.json</code></td>
+<td><code>output/step9_upload_logs/</code><br>- <code>upload_log_*.json</code></td>
+<td>🚀 <strong>Upload Agent</strong> - Upload generated planning JSON<br>files to <a href="http://Dyna.ai">Dyna.ai</a> platform</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong>:</p>
+<ul>
+<li><strong>Batch upload</strong>: Automatically find and upload all <code>*_merged.json</code> files in <code>step8_final</code> directory</li>
+<li><strong>API configuration</strong>: Read API credentials from <code>.env</code> file (ROBOT_KEY, ROBOT_TOKEN, USERNAME, STEP_9_BASE_URL)</li>
+<li><strong>Upload logs</strong>: Record detailed results of each upload, including success/failure status and error messages</li>
+<li><strong>Check mode</strong>: Support <code>dry_run</code> mode to only check files without uploading</li>
+<li><strong>Auto-skip</strong>: Control whether to auto-execute in <code>run_all_steps.py</code> via <code>STEP_9_AUTO_UPLOAD</code> in <code>.env</code></li>
+</ul>
+<p><strong>Configuration Requirements</strong>:</p>
+<ul>
+<li>Configure following environment variables in <code>.env</code> file:<pre class="hljs"><code>ROBOT_KEY=your_robot_key
+ROBOT_TOKEN=your_robot_token
+USERNAME=your_email@dyna.ai
+STEP_9_BASE_URL=https://saibotan-pre2.100credit.cn/openapi/v1/agent/
+STEP_9_AUTO_UPLOAD=False  # Whether to auto-upload in run_all_steps.py
+STEP_9_UPLOAD_TIMEOUT=60  # Upload timeout (seconds)
+</code></pre>
+</li>
+</ul>
+<p><strong>Usage</strong>:</p>
+<pre class="hljs"><code><span class="hljs-comment"># Manual upload (check mode)</span>
+python step9_upload_agent.py --dry-run
+
+<span class="hljs-comment"># Actual upload</span>
+python step9_upload_agent.py
+
+<span class="hljs-comment"># Upload specific file</span>
+python step9_upload_agent.py --file output/step8_final/agent_project_merged.json
+</code></pre>
+<hr>
+<h2 id="%F0%9F%9B%A0%EF%B8%8F-utility-tools" tabindex="-1"><a class="header-anchor" href="#%F0%9F%9B%A0%EF%B8%8F-utility-tools">🛠️ Utility Tools</a></h2>
+<h3 id="basic-tools" tabindex="-1"><a class="header-anchor" href="#basic-tools">Basic Tools</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>retry_failed_intents.py</code></td>
+<td><code>kb_per_intent_results_{lang}.json</code></td>
+<td>Updated mapping file</td>
+<td>Retry failed KB creation</td>
+</tr>
+<tr>
+<td><code>analyze_failed_names.py</code></td>
+<td><code>kb_per_intent_results_{lang}.json</code></td>
+<td>Console output</td>
+<td>Analyze failed KB names</td>
+</tr>
+<tr>
+<td><code>add_jump_nodes.py</code></td>
+<td>workflow JSON</td>
+<td>Updated workflow</td>
+<td>Add jump nodes</td>
+</tr>
+<tr>
+<td><code>add_all_jump_nodes.py</code></td>
+<td>workflow JSON</td>
+<td>Updated workflow</td>
+<td>Batch add jump nodes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fine-tuning-tool-%E2%AD%90" tabindex="-1"><a class="header-anchor" href="#fine-tuning-tool-%E2%AD%90">Fine-tuning Tool ⭐</a></h3>
+<p><strong>Location</strong>: <code>微调工具/step8_config_tuner.py</code></p>
+<p><strong>Function</strong>: One-click modify KB thresholds and LLM node configs in JSON files under <code>step8_final</code> directory</p>
+<p><strong>Main Features</strong>:</p>
+<ol>
+<li>
+<p><strong>KB Threshold Config</strong>: Batch modify threshold parameters for all KBs</p>
+<ul>
+<li><code>qa_min_threshold</code>: QA minimum threshold</li>
+<li><code>correlation_threshold</code>: Correlation threshold</li>
+<li><code>reference_questions_threshold</code>: Reference questions threshold</li>
+<li><code>diff_threshold</code>: Difference threshold</li>
+<li><code>ratio_threshold</code>: Ratio threshold</li>
+<li><code>file_comparison_threshold</code>: File comparison threshold</li>
+<li><code>qa_comparison_threshold</code>: QA comparison threshold</li>
+<li><code>text_comparison_threshold</code>: Text comparison threshold</li>
+</ul>
+</li>
+<li>
+<p><strong>LLM Node Config</strong>: Batch modify model selection for all LLM nodes in workflows</p>
+<ul>
+<li><code>basic_chat_model</code>: chat_model in basic config</li>
+<li><code>intent_final_llm_model</code>: Final LLM model for intent recognition</li>
+<li><code>workflow_llm_nodes</code>: Model for all LLM nodes in workflow</li>
+<li><code>intention_info_llm_model</code>: llm_model in intention_info</li>
+</ul>
+</li>
+</ol>
+<p><strong>Usage</strong>:</p>
+<pre class="hljs"><code><span class="hljs-comment"># Command line mode: Modify KB thresholds</span>
+python 微调工具/step8_config_tuner.py --thresholds <span class="hljs-string">&quot;qa_min_threshold=0.9,correlation_threshold=70&quot;</span>
+
+<span class="hljs-comment"># Command line mode: Modify LLM config</span>
+python 微调工具/step8_config_tuner.py --models <span class="hljs-string">&quot;workflow_llm_nodes=azure-gpt-4o&quot;</span>
+
+<span class="hljs-comment"># Modify both thresholds and models</span>
+python 微调工具/step8_config_tuner.py --thresholds <span class="hljs-string">&quot;correlation_threshold=70&quot;</span> --models <span class="hljs-string">&quot;workflow_llm_nodes=azure-gpt-4o&quot;</span>
+
+<span class="hljs-comment"># Interactive mode</span>
+python 微调工具/step8_config_tuner.py --interactive
+
+<span class="hljs-comment"># Specify input directory</span>
+python 微调工具/step8_config_tuner.py --input_dir output/step8_final --thresholds <span class="hljs-string">&quot;correlation_threshold=70&quot;</span>
+</code></pre>
+<p><strong>Notes</strong>:</p>
+<ul>
+<li>Tool modifies original files directly, backup <code>step8_final</code> directory before use</li>
+<li>Supports batch processing of all <code>.json</code> files in specified directory</li>
+<li>Tool displays modification details for each file and final statistics</li>
+</ul>
+<h3 id="layout-tool-%E2%AD%90" tabindex="-1"><a class="header-anchor" href="#layout-tool-%E2%AD%90">Layout Tool ⭐</a></h3>
+<p><strong>Location</strong>: <code>布局工具/step7_layout_optimizer.py</code></p>
+<p><strong>Function</strong>: Use graph layout algorithm (based on dagre) to beautify node positions in generated workflow JSON files, making workflow diagrams clearer and more readable</p>
+<p><strong>Main Features</strong>:</p>
+<ul>
+<li>✅ <strong>Support two layout directions</strong>:
+<ul>
+<li><strong>LR (Left to Right)</strong>: Layout from left to right (default)</li>
+<li><strong>TB (Top to Bottom)</strong>: Layout from top to bottom</li>
+</ul>
+</li>
+<li>✅ <strong>Auto-calculate node hierarchy</strong>: Use BFS algorithm to calculate node levels</li>
+<li>✅ <strong>Optimize node spacing</strong>: Avoid overlap, auto-adjust node positions</li>
+<li>✅ <strong>Auto-set connection points</strong>: Automatically set node source/target positions</li>
+<li>✅ <strong>Support batch processing</strong>: Support processing single file or entire directory</li>
+</ul>
+<p><strong>Usage</strong>:</p>
+<pre class="hljs"><code><span class="hljs-comment"># Process single file (left to right layout)</span>
+python 布局工具/step7_layout_optimizer.py --file <span class="hljs-string">&quot;output/step6_final/generated_workflow_*.json&quot;</span> --direction LR
+
+<span class="hljs-comment"># Process single file (top to bottom layout)</span>
+python 布局工具/step7_layout_optimizer.py --file <span class="hljs-string">&quot;output/step6_final/generated_workflow_*.json&quot;</span> --direction TB
+
+<span class="hljs-comment"># Batch process all files in directory</span>
+python 布局工具/step7_layout_optimizer.py --input <span class="hljs-string">&quot;output/step6_final&quot;</span> --direction LR
+
+<span class="hljs-comment"># Specify output directory</span>
+python 布局工具/step7_layout_optimizer.py --input <span class="hljs-string">&quot;output/step6_final&quot;</span> --output <span class="hljs-string">&quot;output/step7_final&quot;</span> --direction LR
+</code></pre>
+<p><strong>Dependencies</strong>:</p>
+<ul>
+<li>Node.js (for running dagre layout algorithm)</li>
+<li><code>@dagrejs/dagre</code> (will auto-install)</li>
+</ul>
+<p><strong>Notes</strong>:</p>
+<ul>
+<li>Script overwrites original files by default, backup before processing</li>
+<li>For complex workflows, recommend using <code>LR</code> (left to right) layout</li>
+<li>For simple workflows, can use <code>TB</code> (top to bottom) layout</li>
+<li>Step 7 cleaning isolated nodes automatically calls layout tool for optimization</li>
+</ul>
+<hr>
+<h2 id="%F0%9F%93%82-output-directory-structure" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%82-output-directory-structure">📂 Output Directory Structure</a></h2>
+<pre class="hljs"><code>output/
+├── step0_extracted/           # Step 0 output
+│   ├── entities.json
+│   ├── intents.json
+│   └── fulfillments.json
+│
+├── step1_processed/           # Step 1 output
+│   ├── entities_en.json
+│   ├── entities_zh-cn.json
+│   ├── entities_zh-hk.json
+│   ├── intents_en.json
+│   ├── intents_zh-cn.json
+│   ├── intents_zh-hk.json
+│   ├── fulfillments_en.json
+│   ├── fulfillments_zh-cn.json
+│   ├── fulfillments_zh-hk.json
+│   ├── intent_parameters.json
+│   ├── flow_configs.json
+│   └── webhooks.json
+│
+├── step2_workflow_config/     # Step 2 output
+│   ├── nodes_config_*.json
+│   ├── edge_config_*.json
+│   └── generated_workflows.json
+│
+├── qa_knowledge_bases/        # Step 3 output (optional)
+│   ├── kb_per_intent_results_en.json
+│   └── temp/
+│       └── qa_*.xlsx
+│
+├── step4_variables/           # Step 4 output
+│   └── variables_*.json
+│
+├── step5_workflow_meta/       # Step 5 output
+│   └── workflow_config_*.json
+│
+├── step6_final/               # Step 6 output
+│   └── generated_workflow_*.json
+│
+├── step7_final/               # Step 7 output (cleaned final workflow)
+│   └── generated_workflow_*.json
+│
+├── step8_final/               # Step 8 output ⭐ Final result
+│   └── {template_name}_{project_name}_merged.json
+│
+└── step9_upload_logs/         # Step 9 output (optional)
+    └── upload_log_*.json
+</code></pre>
+<hr>
+<h2 id="%E2%9A%99%EF%B8%8F-configuration-files" tabindex="-1"><a class="header-anchor" href="#%E2%9A%99%EF%B8%8F-configuration-files">⚙️ Configuration Files</a></h2>
+<h3 id="step3_config.py-(only-needed-for-step-3)" tabindex="-1"><a class="header-anchor" href="#step3_config.py-(only-needed-for-step-3)"><code>step3_config.py</code> (Only needed for Step 3)</a></h3>
+<pre class="hljs"><code><span class="hljs-comment"># API Credentials</span>
+ROBOT_KEY = <span class="hljs-string">&quot;your_key&quot;</span>
+ROBOT_TOKEN = <span class="hljs-string">&quot;your_token&quot;</span>
+USERNAME = <span class="hljs-string">&quot;your_email@dyna.ai&quot;</span>
+
+<span class="hljs-comment"># Language Selection</span>
+LANGUAGE = <span class="hljs-string">&quot;en&quot;</span>  <span class="hljs-comment"># or &quot;zh-cn&quot;, &quot;zh-hk&quot;, &quot;all&quot;</span>
+
+<span class="hljs-comment"># Step Control</span>
+STEP_1_CREATE_KB = <span class="hljs-literal">True</span>       <span class="hljs-comment"># Whether to create KB</span>
+STEP_2_UPDATE_WORKFLOW = <span class="hljs-literal">True</span> <span class="hljs-comment"># Whether to update workflow config</span>
+
+<span class="hljs-comment"># KB Configuration</span>
+MAX_KB_NAME_LENGTH = <span class="hljs-number">255</span>      <span class="hljs-comment"># Max KB name length</span>
+MAX_KB_DESC_LENGTH = <span class="hljs-number">128</span>      <span class="hljs-comment"># Max KB description length</span>
+</code></pre>
+<hr>
+<h2 id="%F0%9F%8E%AF-usage-scenarios" tabindex="-1"><a class="header-anchor" href="#%F0%9F%8E%AF-usage-scenarios">🎯 Usage Scenarios</a></h2>
+<h3 id="scenario-1%3A-complete-pipeline-(first-run)" tabindex="-1"><a class="header-anchor" href="#scenario-1%3A-complete-pipeline-(first-run)">Scenario 1: Complete Pipeline (First Run)</a></h3>
+<pre class="hljs"><code>python run_all_steps.py
+</code></pre>
+<h3 id="scenario-2%3A-only-create-kb" tabindex="-1"><a class="header-anchor" href="#scenario-2%3A-only-create-kb">Scenario 2: Only Create KB</a></h3>
+<pre class="hljs"><code><span class="hljs-comment"># step3_config.py</span>
+STEP_1_CREATE_KB = <span class="hljs-literal">True</span>
+STEP_2_UPDATE_WORKFLOW = <span class="hljs-literal">False</span>
+</code></pre>
+<pre class="hljs"><code>python step3_kb_workflow.py
+</code></pre>
+<h3 id="scenario-3%3A-only-update-workflow-config-(kb-already-exists)" tabindex="-1"><a class="header-anchor" href="#scenario-3%3A-only-update-workflow-config-(kb-already-exists)">Scenario 3: Only Update Workflow Config (KB Already Exists)</a></h3>
+<pre class="hljs"><code><span class="hljs-comment"># step3_config.py</span>
+STEP_1_CREATE_KB = <span class="hljs-literal">False</span>
+STEP_2_UPDATE_WORKFLOW = <span class="hljs-literal">True</span>
+</code></pre>
+<pre class="hljs"><code>python step3_kb_workflow.py
+</code></pre>
+<h3 id="scenario-4%3A-retry-failed-kbs" tabindex="-1"><a class="header-anchor" href="#scenario-4%3A-retry-failed-kbs">Scenario 4: Retry Failed KBs</a></h3>
+<pre class="hljs"><code>python retry_failed_intents.py
+</code></pre>
+<hr>
+<h2 id="%F0%9F%93%8A-data-flow-diagram" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%8A-data-flow-diagram">📊 Data Flow Diagram</a></h2>
+<pre class="hljs"><code>exported_flow_*.json
+        ↓
+   [Step 0] Extract
+        ↓
+entities/intents/fulfillments.json
+        ↓
+   [Step 1] Process
+        ↓
+Split by language + Extract parameters
+        ↓
+   [Step 2] Convert
+        ↓
+nodes_config + edge_config
+        ↓
+   [Step 3] KB ⭐ (Optional)
+        ↓
+Create KB + Update KB IDs
+        ↓
+   [Step 4] Variables
+        ↓
+variables.json
+        ↓
+   [Step 5] Meta
+        ↓
+workflow_config.json
+        ↓
+   [Step 6] Generate
+        ↓
+generated_workflow_*.json
+        ↓
+   [Step 7] Clean Isolated Nodes
+        ↓
+Cleaned generated_workflow_*.json
+        ↓
+   [Step 8] Merge to Planning JSON
+        ↓
+{template_name}_{project_name}_merged.json
+        ↓
+   [Step 9] Upload Agent ⭐ (Optional)
+        ↓
+Upload to Dyna.ai Platform ⭐ Final Deployment
+</code></pre>
+<hr>
+<h2 id="%F0%9F%92%A1-core-features" tabindex="-1"><a class="header-anchor" href="#%F0%9F%92%A1-core-features">💡 Core Features</a></h2>
+<h3 id="step-3-knowledge-base-creation" tabindex="-1"><a class="header-anchor" href="#step-3-knowledge-base-creation">Step 3 Knowledge Base Creation</a></h3>
+<ul>
+<li>✅ <strong>Smart skip</strong>: Skip already created KBs automatically</li>
+<li>✅ <strong>Smart merge</strong>: Auto-merge results from multiple runs</li>
+<li>✅ <strong>Smart match</strong>: Auto-match single/multi intent files</li>
+<li>✅ <strong>Auto-backup</strong>: Auto-backup original config before update</li>
+</ul>
+<h3 id="step-7-isolated-node-cleaning" tabindex="-1"><a class="header-anchor" href="#step-7-isolated-node-cleaning">Step 7 Isolated Node Cleaning</a></h3>
+<ul>
+<li>✅ <strong>Smart identification</strong>: Auto-identify isolated nodes and block nodes</li>
+<li>✅ <strong>Safe cleaning</strong>: Keep start node to ensure workflow integrity</li>
+</ul>
+<h3 id="step-8-planning-json-merging" tabindex="-1"><a class="header-anchor" href="#step-8-planning-json-merging">Step 8 Planning JSON Merging</a></h3>
+<ul>
+<li>✅ <strong>Auto-create intention_list</strong>: If template is empty, auto-create based on chatflow_list</li>
+<li>✅ <strong>Smart matching</strong>: Support both index matching and name matching</li>
+<li>✅ <strong>Auto-fill positive_examples</strong>: Extract similar questions from exported_flow and intents</li>
+</ul>
+<h3 id="step-9-agent-upload" tabindex="-1"><a class="header-anchor" href="#step-9-agent-upload">Step 9 Agent Upload</a></h3>
+<ul>
+<li>✅ <strong>Batch upload</strong>: Auto-find and upload all merged JSON files</li>
+<li>✅ <strong>Upload logs</strong>: Detailed record of each upload result and error messages</li>
+<li>✅ <strong>Check mode</strong>: Support dry_run mode to only check without uploading</li>
+<li>✅ <strong>Auto-skip</strong>: Control auto-execution via environment variable</li>
+</ul>
+<h3 id="fine-tuning-tool" tabindex="-1"><a class="header-anchor" href="#fine-tuning-tool">Fine-tuning Tool</a></h3>
+<ul>
+<li>✅ <strong>Batch config</strong>: One-click modify all KB thresholds and LLM model configs</li>
+<li>✅ <strong>Interactive mode</strong>: Support both command line and interactive usage</li>
+<li>✅ <strong>Smart update</strong>: Auto-identify and update all relevant config items</li>
+</ul>
+<h3 id="layout-tool" tabindex="-1"><a class="header-anchor" href="#layout-tool">Layout Tool</a></h3>
+<ul>
+<li>✅ <strong>Auto-layout</strong>: Use dagre algorithm to auto-optimize node positions</li>
+<li>✅ <strong>Multiple directions</strong>: Support left-to-right (LR) and top-to-bottom (TB) layouts</li>
+<li>✅ <strong>Batch processing</strong>: Support single file or entire directory batch processing</li>
+</ul>
+<h3 id="multi-language-support" tabindex="-1"><a class="header-anchor" href="#multi-language-support">Multi-language Support</a></h3>
+<ul>
+<li>🇬🇧 English (en)</li>
+<li>🇨🇳 Simplified Chinese (zh-cn)</li>
+<li>🇭🇰 Traditional Chinese Hong Kong (zh-hk)</li>
+</ul>
+<h3 id="multi-workflow-mode" tabindex="-1"><a class="header-anchor" href="#multi-workflow-mode">Multi-Workflow Mode</a></h3>
+<ul>
+<li>Generate independent workflow for each flow-level intent</li>
+<li>Auto-process single intent and multi-intent files</li>
+<li>KB IDs auto-map to corresponding workflows</li>
+</ul>
+<hr>
+<h2 id="%F0%9F%94%A7-troubleshooting" tabindex="-1"><a class="header-anchor" href="#%F0%9F%94%A7-troubleshooting">🔧 Troubleshooting</a></h2>
+<h3 id="issue-1%3A-%E2%80%9Ccannot-find-step3_config.py%E2%80%9D" tabindex="-1"><a class="header-anchor" href="#issue-1%3A-%E2%80%9Ccannot-find-step3_config.py%E2%80%9D">Issue 1: “Cannot find step3_config.py”</a></h3>
+<p><strong>Solution</strong>: Ensure <code>step3_config.py</code> exists and API credentials configured (only needed for Step 3)</p>
+<h3 id="issue-2%3A-%E2%80%9Cparameter-verification-failed%E2%80%9D" tabindex="-1"><a class="header-anchor" href="#issue-2%3A-%E2%80%9Cparameter-verification-failed%E2%80%9D">Issue 2: “Parameter verification failed”</a></h3>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Check KB description length ≤ 128 characters</li>
+<li>Confirm embedding parameters are correct</li>
+</ul>
+<h3 id="issue-3%3A-some-workflow-files-not-updated" tabindex="-1"><a class="header-anchor" href="#issue-3%3A-some-workflow-files-not-updated">Issue 3: Some workflow files not updated</a></h3>
+<p><strong>Solution</strong>: Check if <code>kb_per_intent_results_{lang}.json</code> contains that intent</p>
+<h3 id="issue-4%3A-positive_examples-empty-in-step-8" tabindex="-1"><a class="header-anchor" href="#issue-4%3A-positive_examples-empty-in-step-8">Issue 4: positive_examples empty in Step 8</a></h3>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Check if <code>input/exported_flow_*.json</code> file exists</li>
+<li>Check if <code>output/step1_processed/intents_en.json</code> file exists</li>
+<li>View debug info to confirm matching logic is correct</li>
+</ul>
+<h3 id="issue-5%3A-step-8-output-filename-incorrect" tabindex="-1"><a class="header-anchor" href="#issue-5%3A-step-8-output-filename-incorrect">Issue 5: Step 8 output filename incorrect</a></h3>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Ensure <code>exported_flow_*.json</code> file is in project root or <code>input/</code> folder</li>
+<li>Check if filename format is correct (<code>exported_flow_{project_name}.json</code>)</li>
+</ul>
+<h3 id="issue-6%3A-step-9-upload-failed" tabindex="-1"><a class="header-anchor" href="#issue-6%3A-step-9-upload-failed">Issue 6: Step 9 upload failed</a></h3>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Check if API credentials in <code>.env</code> file are correct (ROBOT_KEY, ROBOT_TOKEN, USERNAME)</li>
+<li>Check if <code>STEP_9_BASE_URL</code> is correct</li>
+<li>Check network connection and API service availability</li>
+<li>View log files in <code>output/step9_upload_logs/</code> for detailed error info</li>
+</ul>
+<h3 id="issue-7%3A-layout-tool-cannot-run" tabindex="-1"><a class="header-anchor" href="#issue-7%3A-layout-tool-cannot-run">Issue 7: Layout tool cannot run</a></h3>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Ensure Node.js is installed (download from <a href="https://nodejs.org/">https://nodejs.org/</a>)</li>
+<li>Check if <code>step7_layout_optimizer_dagre.js</code> file exists in <code>布局工具/</code> directory</li>
+<li>If dagre not installed, tool will auto-install, if failed manually run: <code>npm install @dagrejs/dagre</code></li>
+</ul>
+<hr>
+<h2 id="%F0%9F%93%9D-notes" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%9D-notes">📝 Notes</a></h2>
+<ol>
+<li><strong>First run</strong>: Recommend setting <code>MAX_INTENTS_TO_PROCESS = 10</code> for testing (Step 3)</li>
+<li><strong>API limitations</strong>:
+<ul>
+<li>Max KB name 255 characters</li>
+<li>Max KB description 128 characters</li>
+<li>Embedding model uniformly uses <code>bge-large-zh</code></li>
+</ul>
+</li>
+<li><strong>File locations</strong>:
+<ul>
+<li>All output in <code>output/</code> directory, keep root directory clean</li>
+<li>Input files can be placed in project root or <code>input/</code> folder</li>
+</ul>
+</li>
+<li><strong>Template file</strong>: Step 8 requires placing planning JSON template file in <code>input/</code> folder</li>
+<li><strong>Language selection</strong>: Default uses English (en), can modify in Step 3 config</li>
+</ol>
+<hr>
+<h2 id="%F0%9F%93%9A-todo" tabindex="-1"><a class="header-anchor" href="#%F0%9F%93%9A-todo">📚 TODO</a></h2>
+<h3 id="%F0%9F%9F%A1-medium-priority" tabindex="-1"><a class="header-anchor" href="#%F0%9F%9F%A1-medium-priority">🟡 Medium Priority</a></h3>
+<ol>
+<li><strong>Fine-tuning Enhancements</strong>
+<ul>
+<li>[ ] <strong>Overall Language Adjustment</strong>: Support batch modify language settings for all workflows</li>
+<li>[ ] <strong>Other Config Adjustments</strong>: Support batch modify embedding model, confidence thresholds, etc.</li>
+<li>[ ] Provide config templates and batch replace functionality</li>
+</ul>
+</li>
+</ol>
+<h3 id="%F0%9F%9F%A2-completed-features" tabindex="-1"><a class="header-anchor" href="#%F0%9F%9F%A2-completed-features">🟢 Completed Features</a></h3>
+<ul>
+<li>
+<p>✅ <strong>Upload Agent Interface</strong> (Step 9)</p>
+<ul>
+<li>✅ Implement interface to upload generated planning JSON files to <a href="http://Dyna.ai">Dyna.ai</a> platform</li>
+<li>✅ Support batch upload of multiple workflows</li>
+<li>✅ Add upload progress display and error handling</li>
+</ul>
+</li>
+<li>
+<p>✅ <strong>Auto-layout Canvas Tool</strong> (Layout Tool)</p>
+<ul>
+<li>✅ Implement workflow node auto-layout algorithm (based on dagre)</li>
+<li>✅ Optimize node positions to avoid overlap and crossing</li>
+<li>✅ Support left-to-right and top-to-bottom layout directions</li>
+<li>✅ Generate beautiful flowchart layouts</li>
+</ul>
+</li>
+<li>
+<p>✅ <strong>Fine-tuning Tool</strong> (Fine-tuning Tool)</p>
+<ul>
+<li>✅ Support batch modify LLM models used by all workflows</li>
+<li>✅ Support batch modify KB threshold configs</li>
+<li>✅ Provide command line and interactive usage modes</li>
+</ul>
+</li>
+</ul>
+<hr>
+<p><strong>Version</strong>: 2.1<br>
+<strong>Update Date</strong>: 2025-11-30
+<strong>Authors</strong>: Edison, Zephyr</p>
+<p><strong>Update History</strong>:</p>
+<ul>
+<li>v2.1 (2025-11-30): Step 2 added support for “intent extraction + multiple condition branches” mode (scenario d), fixed llmVariableAssignment node type issue</li>
+<li>v2.0 (2025-11-13): Complete multi-language workflow conversion pipeline</li>
+</ul>

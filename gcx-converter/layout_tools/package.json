@@ -1,0 +1,13 @@
+{
+  "name": "workflow-layout-optimizer",
+  "version": "1.0.0",
+  "description": "Workflow layout optimizer using dagre",
+  "main": "step7_layout_optimizer_dagre.js",
+  "scripts": {
+    "test": "node step7_layout_optimizer_dagre.js"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.8"
+  }
+}
+

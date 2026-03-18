@@ -1,0 +1,52 @@
+# ============================================
+# Python 依赖 - 与本地环境一致
+# ============================================
+
+# Web Framework & API
+fastapi==0.123.3
+uvicorn==0.38.0
+pydantic==2.12.5
+pydantic-core==2.41.5
+Requests==2.32.5
+starlette==0.50.0
+
+# Database
+SQLAlchemy==2.0.44
+pymysql==1.1.2
+alembic==1.17.2
+greenlet==3.2.4
+
+# Data Processing
+pandas==2.3.3
+numpy==2.3.5
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2
+
+# Excel
+openpyxl==3.1.5
+et-xmlfile==2.0.0
+
+# Configuration
+python-dotenv==1.2.1
+
+# HTTP & Networking
+urllib3==2.6.3
+certifi==2025.11.12
+charset-normalizer==3.4.4
+anyio==4.12.0
+h11==0.16.0
+
+# Utilities
+click==8.3.1
+six==1.17.0
+typing-extensions==4.15.0
+Werkzeug>=3.1.5
+azure-core>=1.38.0
+pyasn1>=0.6.2
+jaraco.context==6.1.0
+aiohttp==3.13.3
+cbor2==5.8.0
+# Optional: Performance boost for production (Linux/macOS only)
+# uvloop==0.19.0  # Uncomment for Linux/macOS (not Windows)
+# httptools==0.6.0
